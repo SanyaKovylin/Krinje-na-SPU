@@ -1,5 +1,5 @@
-#define NDEBUG 100
-#include <TXLib.h>
+// #define NDEBUG 100
+// #include <TXLib.h>
 #include <string.h>
 #include <math.h>
 #include <assert.h>
@@ -31,6 +31,7 @@ size_t Read (const char *src, char **Buffer);
 int IsZero(double el);
 void get_arg(cond_t *cons, vtype **cell);
 void pr_bin(void* el, int size);
+int gets_ip(cmd_t cmd);
 
 #define INIT_EL1_EL2_ANS vtype el1 = (vtype) DefaultTypeValue;\
     vtype el2 = (vtype) DefaultTypeValue;\
@@ -88,7 +89,7 @@ void Run(const char* src){
                 GetFunc[i].cmdfunc(&RunConditions);
             }
         }
-        // DUMP(&stack);
+        DUMP(&stack);
     }
 }
 
@@ -160,6 +161,11 @@ static err_t GetTwoValues(Stack *src, vtype *elem1, vtype *elem2){
 
 #undef COMMAND
 
+#define GET_VALUE(cell, sizeof)\
+    memcpy(&cell, Conditions->Ips + Conditions->ip, sizeof);\
+            Conditions->ip += sizeof;
+            // value += cnst;
+
 void get_arg(cond_t *Conditions, vtype **cell){
 
     static vtype value = 0;
@@ -170,25 +176,17 @@ void get_arg(cond_t *Conditions, vtype **cell){
     com_t cmd = Conditions->cmd;
 
     if (cmd.ico) {
-
-        if (CMD_JMP <= cmd.cmd && cmd.cmd <= CMD_JNE){//TODO
-
-            memcpy(&jump_ip, Conditions->Ips + Conditions->ip, sizeof(int));
-            Conditions->ip += sizeof(int);
-            value += cnst;
+        if (gets_ip(cmd.cmd)){
+            GET_VALUE(jump_ip, int);
+            value += (vtype) jump_ip;
         }
         else{
-
-            memcpy(&cnst, Conditions->Ips + Conditions->ip, sizeof(vtype));
-            Conditions->ip += sizeof(vtype);
+            GET_VALUE(cnst, vtype);
             value += cnst;
         }
     }
-
     if (cmd.reg) {
-
-        memcpy(&registr, Conditions->Ips + Conditions->ip, sizeof(char));
-        Conditions->ip += sizeof(char);
+        GET_VALUE(registr, char);
         value += Conditions->Regs[registr - 1];
     }
 
@@ -196,6 +194,16 @@ void get_arg(cond_t *Conditions, vtype **cell){
     }
     else if      (cmd.ico) *(cell) = &value;
     else        *(cell) = Conditions->Regs + registr - 1;
+}
+
+int gets_ip(cmd_t cmd){
+    for (int i = 0; i < ncmds; i++){
+        printf("%d", cmd);
+        if (GetFunc[i].command == cmd){
+            return GetFunc[i].gets_int;
+        }
+    }
+    return 0;
 }
 
 void pr_bin(void* el, int size){
